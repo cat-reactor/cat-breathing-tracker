@@ -19,7 +19,6 @@
   /* Series: one fixed hue per state (validated categorical slots 1-3) */
   --s-asleep: #2a78d6;
   --s-awake: #eb6834;
-  --s-half: #1baf7a;
   --shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
 }
 @media (prefers-color-scheme: dark) {
@@ -42,7 +41,6 @@
     --focus: #3987e5;
     --s-asleep: #3987e5;
     --s-awake: #d95926;
-    --s-half: #199e70;
     --shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
   }
 }
@@ -65,12 +63,10 @@
   --focus: #3987e5;
   --s-asleep: #3987e5;
   --s-awake: #d95926;
-  --s-half: #199e70;
   --shadow: 0 8px 30px rgba(0, 0, 0, 0.4);
 }
 
 .s-asleep { --c: var(--s-asleep); }
-.s-half { --c: var(--s-half); }
 .s-awake { --c: var(--s-awake); }
 
 /* ---------- Base ---------- */
@@ -243,7 +239,7 @@ dialog.sheet::backdrop { background: rgba(0, 0, 0, 0.4); }
 .empty { margin: 24px 8px; text-align: center; color: var(--ink-2); }
 
 /* ---------- Trends ---------- */
-.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 .tile { background: var(--surface); border-radius: 14px; box-shadow: 0 0 0 1px var(--border); padding: 12px; min-width: 0; }
 .tile-lbl { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-2); white-space: nowrap; }
 .tile-val { margin-top: 6px; font-size: 30px; font-weight: 600; line-height: 1.1; }

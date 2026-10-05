@@ -3,7 +3,7 @@
 'use strict';
 
 (() => {
-  const APP_VERSION = '1.1';
+  const APP_VERSION = '1.2';
   const STORE_KEY = 'breaths.readings.v1';
   const SETTINGS_KEY = 'breaths.settings.v1';
   const COUNT_MS = 60000;
@@ -12,11 +12,10 @@
 
   const STATES = {
     asleep: { label: 'Asleep', short: 'Asleep', csv: 'asleep' },
-    half: { label: 'Half-asleep', short: 'Half', csv: 'half-asleep' },
     awake: { label: 'Awake', short: 'Awake', csv: 'awake' },
   };
-  const STATE_ORDER = ['asleep', 'half', 'awake'];
-  const DRAW_ORDER = ['awake', 'half', 'asleep']; // asleep is drawn last, on top
+  const STATE_ORDER = ['asleep', 'awake'];
+  const DRAW_ORDER = ['awake', 'asleep']; // asleep is drawn last, on top
   const STATE_OPTIONS = STATE_ORDER.map(s => ({ value: s, label: STATES[s].label, state: s }));
   const RANGES = [
     { value: '7', label: '7 days', days: 7 },
@@ -66,8 +65,12 @@
 
   let readings = load(STORE_KEY, []);
   if (!Array.isArray(readings)) readings = [];
+  // v1.2 dropped "half-asleep": those readings count as awake.
+  const hadHalf = readings.some(r => r && r.state === 'half');
+  for (const r of readings) if (r && r.state === 'half') r.state = 'awake';
   readings = readings.filter(r => r && Number.isFinite(r.t) && STATES[r.state] && r.bpm > 0);
   readings.sort((a, b) => a.t - b.t);
+  if (hadHalf) store(STORE_KEY, readings);
 
   const settings = Object.assign(
     { name: 'BB', alert: 30, theme: 'auto', countState: 'asleep', range: '30', logFilter: 'all', lastExport: 0, hideInstall: false, backupSnooze: 0 },
@@ -75,6 +78,8 @@
   );
   // Number of changes (adds, edits, deletes) since the last backup.
   if (!Number.isFinite(settings.unsaved)) settings.unsaved = settings.lastExport ? 0 : readings.length;
+  if (!STATES[settings.countState]) settings.countState = 'awake';
+  if (settings.logFilter !== 'all' && !STATES[settings.logFilter]) settings.logFilter = 'all';
   const saveSettings = () => store(SETTINGS_KEY, settings);
 
   const uid = () => (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
@@ -94,7 +99,7 @@
     settings.unsaved += n;
     saveSettings();
   }
-  const isOverAlert = (state, bpm) => state !== 'awake' && bpm > settings.alert;
+  const isOverAlert = (state, bpm) => state === 'asleep' && bpm > settings.alert;
 
   // ---------- Dates ----------
   const pad2 = n => String(n).padStart(2, '0');
@@ -272,7 +277,7 @@
     $('#btn-reset').style.visibility = phase === 'running' ? 'visible' : 'hidden';
   }
   function syncPadColor() {
-    pad.classList.remove('s-asleep', 's-half', 's-awake');
+    pad.classList.remove('s-asleep', 's-awake');
     pad.classList.add('s-' + segValue($('#count-state')));
   }
   function renderCountInfo() {
@@ -678,7 +683,7 @@
   // ---------- Import ----------
   function normState(s) {
     s = String(s || '').toLowerCase();
-    if (/half|drows|doz/.test(s)) return 'half';
+    if (/half|drows|doz|relax/.test(s)) return 'awake'; // half-asleep counts as awake
     if (/sleep/.test(s)) return 'asleep';
     if (/awake|wake/.test(s)) return 'awake';
     return null;
@@ -804,14 +809,14 @@
       fresh.push(r);
     }
     if (!found.length) {
-      box.append(h('p', null, 'I couldn’t find any readings there. Each line needs a date, a time, a state (awake, asleep or half-asleep) and the number of breaths.'));
+      box.append(h('p', null, 'I couldn’t find any readings there. Each line needs a date, a time, a state (awake or asleep) and the number of breaths.'));
     } else {
-      const c = { asleep: 0, half: 0, awake: 0 };
+      const c = { asleep: 0, awake: 0 };
       for (const r of found) c[r.state]++;
       const ts = found.map(r => r.t);
       const head = h('p');
       head.append(h('strong', null, `Found ${found.length} reading${found.length === 1 ? '' : 's'}`),
-        ` from ${fmtDay(Math.min(...ts), true)} to ${fmtDay(Math.max(...ts), true)}: ${c.asleep} asleep, ${c.half} half-asleep, ${c.awake} awake.`);
+        ` from ${fmtDay(Math.min(...ts), true)} to ${fmtDay(Math.max(...ts), true)}: ${c.asleep} asleep, ${c.awake} awake.`);
       box.append(head);
       if (dups) box.append(h('p', null, `${dups} ${dups === 1 ? 'is' : 'are'} already in your log and will be skipped.`));
     }

@@ -5,7 +5,7 @@ monitoring a cat with HCM. Add it to an iPhone Home Screen and it behaves like a
 
 - **Count**: tap once per breath; the 1-minute timer starts with the first tap.
 - **Log**: every reading by day; add past readings or edit/delete any reading.
-- **Trends**: asleep, half-asleep and awake readings charted separately, with an alert line
+- **Trends**: asleep and awake readings charted separately, with an alert line
   (default 30/min; set your vet's number under More).
 - **Import / export**: paste an old text log or a CSV; export CSV to back up or send to the vet.
 

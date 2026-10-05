@@ -1,6 +1,6 @@
 // Offline support: serve the app from cache when there's no connection.
 // Bump CACHE when releasing a new version so old files are cleared.
-const CACHE = 'breaths-v2';
+const CACHE = 'breaths-v3';
 const ASSETS = [
   './',
   'index.html',
