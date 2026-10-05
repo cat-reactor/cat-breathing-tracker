@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Breaths</title>
+<meta name="description" content="A private breathing-rate log for your cat. Data stays on this device.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Breaths">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#f9f9f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0d0d0d" media="(prefers-color-scheme: dark)">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="styles.css">
+<script>
+  // Apply a saved Light/Dark choice before first paint.
+  try { var s = JSON.parse(localStorage.getItem('breaths.settings.v1') || '{}'); if (s.theme && s.theme !== 'auto') document.documentElement.dataset.theme = s.theme; } catch (e) {}
+</script>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <p class="eyebrow" id="eyebrow">Breathing tracker</p>
+    <h1 id="view-title">Count breaths</h1>
+  </header>
+
+  <main>
+    <!-- COUNT -->
+    <section class="view" data-view="count">
+      <div class="card install" id="install-hint" hidden>
+        <div>
+          <strong>Add this to your Home Screen</strong>
+          <p>In Safari, tap <b>Share</b>, then <b>Add to Home Screen</b>. Then always open it from the Home Screen: Safari and the Home Screen app keep separate data.</p>
+        </div>
+        <button type="button" class="icon-btn" id="install-close" aria-label="Dismiss">&times;</button>
+      </div>
+      <div class="card backup-banner" hidden></div>
+
+      <p class="label" id="count-state-label">Your cat is…</p>
+      <div class="seg" id="count-state" aria-labelledby="count-state-label"></div>
+
+      <button type="button" id="pad" class="pad s-asleep" aria-label="Tap for each breath" aria-describedby="count-hint">
+        <svg class="ring" viewBox="0 0 200 200" aria-hidden="true">
+          <circle class="ring-track" cx="100" cy="100" r="92"/>
+          <circle class="ring-prog" id="ring-prog" cx="100" cy="100" r="92"/>
+        </svg>
+        <span class="pad-inner">
+          <span class="pad-count" id="pad-count">Tap</span>
+          <span class="pad-sub" id="pad-sub"></span>
+        </span>
+      </button>
+      <div class="count-actions"><button type="button" class="btn ghost" id="btn-reset">Reset</button></div>
+      <p class="hint" id="count-hint">Tap once each time the chest rises. The 1-minute timer starts with your first tap.</p>
+      <p class="last" id="last-asleep" hidden></p>
+    </section>
+
+    <!-- LOG -->
+    <section class="view" data-view="log" hidden>
+      <button type="button" class="btn primary block" id="btn-add">+ Add a past reading</button>
+      <div class="seg compact" id="log-filter" aria-label="Show"></div>
+      <div class="card backup-banner" hidden></div>
+      <div id="log-list"></div>
+      <p class="empty" id="log-empty" hidden></p>
+    </section>
+
+    <!-- TRENDS -->
+    <section class="view" data-view="trends" hidden>
+      <div class="seg compact" id="range" aria-label="Time range"></div>
+      <div class="tiles" id="tiles"></div>
+      <div class="card chart-card">
+        <div class="legend" id="legend"></div>
+        <div class="chart-wrap" id="chart-wrap">
+          <svg id="chart" role="img" aria-label="Breaths per minute over time"></svg>
+          <div class="tooltip" id="tip" hidden></div>
+        </div>
+        <p class="caption">Dots are single readings; lines join each day’s average. Tap a dot for details, or a legend item to hide or show it.</p>
+      </div>
+    </section>
+
+    <!-- MORE -->
+    <section class="view" data-view="more" hidden>
+      <div class="card stack">
+        <h2>Settings</h2>
+        <label class="field"><span>Cat’s name</span><input type="text" id="s-name" autocomplete="off" maxlength="40"></label>
+        <label class="field"><span>Alert level (breaths/min while asleep)</span>
+          <input type="number" id="s-alert" inputmode="numeric" min="10" max="80">
+          <small>Use the number your vet gave you. Many vets use 30.</small>
+        </label>
+        <div class="field"><span>Appearance</span><div class="seg" id="s-theme"></div></div>
+      </div>
+
+      <div class="card stack">
+        <h2>Back up</h2>
+        <p id="data-count"></p>
+        <button type="button" class="btn primary block" id="btn-export">Back up to iCloud Drive</button>
+        <p class="small" id="last-export"></p>
+        <p class="small">In the menu that opens, tap <b>Save to Files</b>, choose a folder in <b>iCloud Drive</b> (for example a “BB backups” folder), then tap <b>Save</b>. Use the same folder each time. From the same menu you can also email the file to your vet; it opens in Numbers or Excel.</p>
+      </div>
+
+      <div class="card stack">
+        <h2>Import or restore</h2>
+        <p class="small">To restore a backup, tap <b>Choose file…</b> and pick your newest backup in iCloud Drive. To add your old notes, paste them below, one reading per line, e.g. <code>Tuesday 22nd Sept 14:50 (asleep) 18</code>. Readings you already have are skipped.</p>
+        <textarea id="import-text" rows="5" placeholder="Monday 21st Sept 23:00 (awake)  32" autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
+        <div class="row-btns">
+          <button type="button" class="btn ghost" id="btn-import-file">Choose file…</button>
+          <button type="button" class="btn" id="btn-import-parse">Check pasted text</button>
+        </div>
+        <input type="file" id="import-file" accept=".csv,.txt,text/csv,text/plain" hidden>
+        <div class="import-result" id="import-result" hidden></div>
+      </div>
+
+      <div class="card stack">
+        <h2>Privacy</h2>
+        <p class="small">Your readings are stored only on this device, inside this app. Nothing is uploaded or shared unless you export it yourself. Removing the app from your Home Screen can erase its data, so export a backup now and then.</p>
+        <button type="button" class="btn ghost danger block" id="btn-wipe">Delete all readings</button>
+        <p class="small muted" id="app-version"></p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<nav class="tabbar" aria-label="Sections">
+  <div class="tabbar-inner">
+    <button type="button" data-tab="count" aria-current="page">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13.5" r="7.5"/><path d="M12 10v3.5l2.5 2M9.5 2.5h5M12 2.5V6"/></svg>Count
+    </button>
+    <button type="button" data-tab="log">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6.5h11M9 12h11M9 17.5h11"/><path d="M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01" stroke-width="2.6"/></svg>Log
+    </button>
+    <button type="button" data-tab="trends">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 20h17"/><path d="M4.5 15.5l4.5-4.5 4 3 6.5-7.5"/></svg>Trends
+    </button>
+    <button type="button" data-tab="more">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M18 7h2M4 17h3M12 17h8"/><circle cx="15.5" cy="7" r="2.3"/><circle cx="9.5" cy="17" r="2.3"/></svg>More
+    </button>
+  </div>
+</nav>
+
+<!-- Result of a 1-minute count -->
+<dialog class="sheet" id="sheet-result" aria-labelledby="res-heading">
+  <div class="sheet-body">
+    <p class="label" id="res-heading">1-minute count</p>
+    <div class="result">
+      <button type="button" class="step" id="res-minus" aria-label="One fewer">&minus;</button>
+      <div class="result-mid">
+        <div class="result-num" id="res-bpm">0</div>
+        <div class="result-unit">breaths per minute</div>
+      </div>
+      <button type="button" class="step" id="res-plus" aria-label="One more">+</button>
+    </div>
+    <p class="result-when" id="res-when"></p>
+    <div class="notice" id="res-alert" hidden><span class="flag" aria-hidden="true">▲</span><span id="res-alert-text"></span></div>
+    <div class="field"><span>State</span><div class="seg" id="res-state"></div></div>
+    <label class="field"><span>Note (optional)</span><input type="text" id="res-note" placeholder="e.g. after eating" autocomplete="off"></label>
+    <div class="sheet-actions">
+      <button type="button" class="btn ghost" id="res-discard">Discard</button>
+      <button type="button" class="btn primary" id="res-save">Save</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Add / edit a reading -->
+<dialog class="sheet" id="sheet-entry" aria-labelledby="entry-title">
+  <form class="sheet-body" id="entry-form" novalidate>
+    <h2 id="entry-title">Add a reading</h2>
+    <div class="field-row">
+      <label class="field"><span>Date</span><input type="date" id="f-date"></label>
+      <label class="field"><span>Time</span><input type="time" id="f-time"></label>
+    </div>
+    <div class="field"><span>State</span><div class="seg" id="f-state"></div></div>
+    <label class="field"><span>Breaths per minute</span><input type="number" id="f-bpm" inputmode="numeric" placeholder="e.g. 24"></label>
+    <label class="field"><span>Note (optional)</span><input type="text" id="f-note" autocomplete="off"></label>
+    <p class="form-error" id="f-error" role="alert" hidden></p>
+    <div class="sheet-actions">
+      <button type="button" class="btn ghost danger" id="f-delete" hidden>Delete</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn ghost" id="f-cancel">Cancel</button>
+      <button type="submit" class="btn primary">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script src="app.js"></script>
+</body>
+</html>
