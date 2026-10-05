@@ -3,7 +3,7 @@
 'use strict';
 
 (() => {
-  const APP_VERSION = '1.3';
+  const APP_VERSION = '1.3.1';
   const STORE_KEY = 'breaths.readings.v1';
   const SETTINGS_KEY = 'breaths.settings.v1';
   const COUNT_MS = 60000;

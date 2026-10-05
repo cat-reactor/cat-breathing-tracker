@@ -102,8 +102,8 @@ struct SettingsView: View {
                     Text("Privacy")
                 } footer: {
                     Text(AppConfig.iCloudSyncEnabled
-                         ? "Your readings stay solely on this iPhone and in your own iCloud."
-                         : "Your readings stay solely on this iPhone.")
+                         ? "Your data stay solely on this iPhone and in your own iCloud."
+                         : "Your data stay solely on this iPhone.")
                 }
 
                 Section {
