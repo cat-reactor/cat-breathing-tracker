@@ -25,6 +25,8 @@ struct BreathsApp: App {
 }
 
 struct ContentView: View {
+    @AppStorage(Prefs.appearance) private var appearance: Appearance = .system
+
     var body: some View {
         TabView {
             CountView()
@@ -36,5 +38,6 @@ struct ContentView: View {
             SettingsView()
                 .tabItem { Label("Settings", systemImage: "gearshape") }
         }
+        .preferredColorScheme(appearance == .light ? .light : appearance == .dark ? .dark : nil)
     }
 }

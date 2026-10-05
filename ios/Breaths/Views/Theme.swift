@@ -61,7 +61,7 @@ struct StatePicker: View {
     }
 }
 
-func catTitle(_ name: String) -> String {
+func petTitle(_ name: String) -> String {
     let n = name.trimmingCharacters(in: .whitespaces)
-    return n.isEmpty ? "Your cat" : n
+    return n.isEmpty ? "Your pet" : n
 }

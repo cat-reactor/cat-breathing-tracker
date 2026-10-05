@@ -40,13 +40,27 @@ final class Reading {
 
 /// Settings stored with @AppStorage.
 enum Prefs {
-    static let catName = "catName"
+    static let petName = "petName"
+    static let appearance = "appearance"
     static let alertLevel = "alertLevel"
     static let countState = "countState"
     static let logFilter = "logFilter"
     static let trendRange = "trendRange"
 
     static let defaultAlertLevel = 30
+}
+
+enum Appearance: String, CaseIterable, Identifiable {
+    case system, light, dark
+
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .system: "System"
+        case .light: "Light"
+        case .dark: "Dark"
+        }
+    }
 }
 
 /// Turns on once the app has an iCloud container (needs a paid Apple Developer account).

@@ -29,7 +29,8 @@ struct TrendsView: View {
     @AppStorage(Prefs.trendRange) private var range: TrendRange = .month
     @AppStorage(Prefs.alertLevel) private var alertLevel = Prefs.defaultAlertLevel
 
-    @State private var hidden: Set<BreathState> = []
+    /// nil shows both states; tapping a legend chip shows only that state.
+    @State private var focus: BreathState?
     @State private var selected: Reading?
 
     private struct DailyMean: Identifiable {
@@ -56,12 +57,14 @@ struct TrendsView: View {
         return readings.filter { $0.date >= b.from && $0.date <= b.to }
     }
 
-    private var visible: [Reading] { items.filter { !hidden.contains($0.state) } }
+    private func isShown(_ s: BreathState) -> Bool { focus == nil || focus == s }
+
+    private var visible: [Reading] { items.filter { isShown($0.state) } }
 
     private var dailyMeans: [DailyMean] {
         let cal = Calendar.current
         var out: [DailyMean] = []
-        for state in BreathState.allCases where !hidden.contains(state) {
+        for state in BreathState.allCases where isShown(state) {
             let groups = Dictionary(grouping: items.filter { $0.state == state }) { cal.startOfDay(for: $0.date) }
             for (_, rs) in groups {
                 let t = rs.map(\.date.timeIntervalSince1970).reduce(0, +) / Double(rs.count)
@@ -114,7 +117,7 @@ struct TrendsView: View {
                 .frame(height: 260)
                 .overlay {
                     if visible.isEmpty {
-                        Text(items.isEmpty ? "No readings in this period" : "All states hidden")
+                        Text(items.isEmpty || focus == nil ? "No readings in this period" : "No \(focus!.label.lowercased()) readings in this period")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -138,7 +141,7 @@ struct TrendsView: View {
                 .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 10))
             }
 
-            Text("Dots are single readings; lines join each day’s average. Tap a dot for details.")
+            Text("Dots are single readings; lines join each day’s average. Tap Asleep or Awake to show only that one, and tap a dot for details.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -149,10 +152,10 @@ struct TrendsView: View {
     private var legend: some View {
         HStack(spacing: 8) {
             ForEach(BreathState.allCases) { s in
-                let on = !hidden.contains(s)
+                let on = isShown(s)
                 Button {
-                    if on { hidden.insert(s) } else { hidden.remove(s) }
-                    if let sel = selected, hidden.contains(sel.state) { selected = nil }
+                    focus = focus == s ? nil : s
+                    if let sel = selected, !isShown(sel.state) { selected = nil }
                 } label: {
                     HStack(spacing: 6) {
                         Circle()
@@ -169,7 +172,8 @@ struct TrendsView: View {
                     .foregroundStyle(on ? Color.primary : Color.secondary)
                 }
                 .buttonStyle(.plain)
-                .accessibilityAddTraits(on ? .isSelected : [])
+                .accessibilityAddTraits(focus == s ? .isSelected : [])
+                .accessibilityHint(focus == s ? "Shows both states" : "Shows only \(s.label.lowercased()) readings")
             }
             HStack(spacing: 6) {
                 Path { p in

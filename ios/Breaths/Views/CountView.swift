@@ -14,7 +14,7 @@ struct CountView: View {
 
     @Environment(\.modelContext) private var context
     @Environment(\.scenePhase) private var scenePhase
-    @AppStorage(Prefs.catName) private var catName = ""
+    @AppStorage(Prefs.petName) private var petName = ""
     @AppStorage(Prefs.countState) private var countState: BreathState = .asleep
     @Query(CountView.lastAsleepDescriptor) private var lastAsleep: [Reading]
 
@@ -44,7 +44,7 @@ struct CountView: View {
         NavigationStack {
             VStack(spacing: 20) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("\(catTitle(catName)) is…")
+                    Text("\(petTitle(petName)) is…")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                     StatePicker(selection: $countState)

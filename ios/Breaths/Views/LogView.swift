@@ -145,11 +145,17 @@ struct EntrySheet: View {
     @State private var note = ""
     @State private var loaded = false
     @State private var confirmDelete = false
+    @State private var addedCount = 0
+    @State private var lastAdded = ""
+    @FocusState private var bpmFocused: Bool
 
     private var bpm: Int? {
         guard let v = Int(bpmText.trimmingCharacters(in: .whitespaces)), (1...250).contains(v) else { return nil }
         return v
     }
+
+    /// After "Save and add another", an empty form can simply be closed.
+    private var canClose: Bool { addedCount > 0 && bpmText.trimmingCharacters(in: .whitespaces).isEmpty }
 
     var body: some View {
         NavigationStack {
@@ -164,9 +170,20 @@ struct EntrySheet: View {
                     TextField("e.g. 24", text: $bpmText)
                         .keyboardType(.numberPad)
                         .font(.title3)
+                        .focused($bpmFocused)
                 }
                 Section("Note (optional)") {
                     TextField("e.g. after eating", text: $note)
+                }
+                if reading == nil {
+                    Section {
+                        Button("Save and add another") { saveAndContinue() }
+                            .disabled(bpm == nil)
+                    } footer: {
+                        Text(addedCount == 0
+                             ? "Entering several past readings? This keeps the form open, with the same date and state."
+                             : "Added \(addedCount) reading\(addedCount == 1 ? "" : "s"). Last: \(lastAdded).")
+                    }
                 }
                 if reading != nil {
                     Section {
@@ -174,12 +191,29 @@ struct EntrySheet: View {
                     }
                 }
             }
-            .navigationTitle(reading == nil ? "Add reading" : "Edit reading")
+            .navigationTitle(reading != nil ? "Edit reading" : addedCount > 0 ? "\(addedCount) added" : "Add reading")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(addedCount > 0 ? "Close" : "Cancel") { dismiss() }
+                }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { save() }.disabled(bpm == nil)
+                    Button(canClose ? "Done" : "Save") {
+                        if canClose { dismiss() } else { save() }
+                    }
+                    .disabled(bpm == nil && !canClose)
+                }
+                // The number pad has no return key and covers the lower buttons, so offer them above it.
+                ToolbarItemGroup(placement: .keyboard) {
+                    if reading == nil {
+                        Button("Save and add another") { saveAndContinue() }
+                            .disabled(bpm == nil)
+                    }
+                    Spacer()
+                    Button("Hide keyboard", systemImage: "keyboard.chevron.compact.down") {
+                        bpmFocused = false
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    }
                 }
             }
             .confirmationDialog("Delete this reading?", isPresented: $confirmDelete, titleVisibility: .visible) {
@@ -205,8 +239,8 @@ struct EntrySheet: View {
         }
     }
 
-    private func save() {
-        guard let bpm else { return }
+    private func store() -> Bool {
+        guard let bpm else { return false }
         let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
         if let reading {
             reading.date = date
@@ -217,6 +251,19 @@ struct EntrySheet: View {
             context.insert(Reading(date: date, state: state, bpm: bpm, note: trimmed))
         }
         try? context.save()
-        dismiss()
+        return true
+    }
+
+    private func save() {
+        if store() { dismiss() }
+    }
+
+    private func saveAndContinue() {
+        guard let bpm, store() else { return }
+        addedCount += 1
+        lastAdded = "\(bpm)/min, \(state.label.lowercased()), \(date.dayLabel) \(date.timeLabel)"
+        bpmText = ""
+        note = ""
+        bpmFocused = true
     }
 }
