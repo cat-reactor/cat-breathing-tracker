@@ -1,7 +1,7 @@
 {
-  "name": "Breaths: cat breathing tracker",
+  "name": "Breaths: pet breathing tracker",
   "short_name": "Breaths",
-  "description": "A private breathing-rate log for your cat. Data stays on this device.",
+  "description": "A private breathing-rate log for your pet. Data stays on this device.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

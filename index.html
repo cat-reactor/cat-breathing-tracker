@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Breaths</title>
-<meta name="description" content="A private breathing-rate log for your cat. Data stays on this device.">
+<meta name="description" content="A private breathing-rate log for your pet. Data stays on this device.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Breaths">
@@ -39,7 +39,7 @@
       </div>
       <div class="card backup-banner" hidden></div>
 
-      <p class="label" id="count-state-label">Your cat is…</p>
+      <p class="label" id="count-state-label">Your pet is…</p>
       <div class="seg" id="count-state" aria-labelledby="count-state-label"></div>
 
       <button type="button" id="pad" class="pad s-asleep" aria-label="Tap for each breath" aria-describedby="count-hint">
@@ -76,46 +76,42 @@
           <svg id="chart" role="img" aria-label="Breaths per minute over time"></svg>
           <div class="tooltip" id="tip" hidden></div>
         </div>
-        <p class="caption">Dots are single readings; lines join each day’s average. Tap a dot for details, or a legend item to hide or show it.</p>
+        <p class="caption">Dots are single readings; lines join each day’s average. Tap Asleep or Awake to show only that one, and tap a dot for details.</p>
       </div>
     </section>
 
-    <!-- MORE -->
+    <!-- SETTINGS -->
     <section class="view" data-view="more" hidden>
       <div class="card stack">
-        <h2>Settings</h2>
-        <label class="field"><span>Cat’s name</span><input type="text" id="s-name" autocomplete="off" maxlength="40"></label>
+        <h2>Your pet</h2>
+        <label class="field"><span>Pet’s name</span><input type="text" id="s-name" autocomplete="off" maxlength="40" placeholder="Optional"></label>
         <label class="field"><span>Alert level (breaths/min while asleep)</span>
           <input type="number" id="s-alert" inputmode="numeric" min="10" max="80">
-          <small>Use the number your vet gave you. Many vets use 30.</small>
+          <small>Asleep readings above the alert level are flagged. Use the number your vet gave you; many vets use 30.</small>
         </label>
-        <div class="field"><span>Appearance</span><div class="seg" id="s-theme"></div></div>
       </div>
 
       <div class="card stack">
-        <h2>Back up</h2>
+        <h2>Appearance</h2>
+        <div class="seg" id="s-theme" aria-label="Appearance"></div>
+      </div>
+
+      <div class="card stack">
+        <h2>Backup &amp; import</h2>
         <p id="data-count"></p>
         <button type="button" class="btn primary block" id="btn-export">Back up to iCloud Drive</button>
         <p class="small" id="last-export"></p>
-        <p class="small">In the menu that opens, tap <b>Save to Files</b>, choose a folder in <b>iCloud Drive</b> (for example a “BB backups” folder), then tap <b>Save</b>. Use the same folder each time. From the same menu you can also email the file to your vet; it opens in Numbers or Excel.</p>
-      </div>
-
-      <div class="card stack">
-        <h2>Import or restore</h2>
-        <p class="small">To restore a backup, tap <b>Choose file…</b> and pick your newest backup in iCloud Drive. To add your old notes, paste them below, one reading per line, e.g. <code>Tuesday 22nd Sept 14:50 (asleep) 18</code>. Readings you already have are skipped.</p>
-        <textarea id="import-text" rows="5" placeholder="Monday 21st Sept 23:00 (awake)  32" autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
-        <div class="row-btns">
-          <button type="button" class="btn ghost" id="btn-import-file">Choose file…</button>
-          <button type="button" class="btn" id="btn-import-parse">Check pasted text</button>
-        </div>
+        <p class="small">In the menu that opens, tap <b>Save to Files</b>, choose a folder in <b>iCloud Drive</b> (for example “Breathing backups”), then tap <b>Save</b>. The file also opens in Numbers or Excel and can be emailed to your vet. Removing this app from your Home Screen can erase its data, so back up now and then.</p>
+        <button type="button" class="btn block" id="btn-add-past">Add past readings…</button>
+        <button type="button" class="btn block" id="btn-import-file">Import a CSV file…</button>
         <input type="file" id="import-file" accept=".csv,.txt,text/csv,text/plain" hidden>
-        <div class="import-result" id="import-result" hidden></div>
+        <p class="small">Import a backup from this app, or a spreadsheet saved as CSV. You’ll see what will be added before anything changes; readings you already have are skipped.</p>
       </div>
 
       <div class="card stack">
         <h2>Privacy</h2>
-        <p class="small">Your readings are stored only on this device, inside this app. Nothing is uploaded or shared unless you export it yourself. Removing the app from your Home Screen can erase its data, so export a backup now and then.</p>
         <button type="button" class="btn ghost danger block" id="btn-wipe">Delete all readings</button>
+        <p class="small">Your readings stay solely on this device.</p>
         <p class="small muted" id="app-version"></p>
       </div>
     </section>
@@ -134,7 +130,7 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 20h17"/><path d="M4.5 15.5l4.5-4.5 4 3 6.5-7.5"/></svg>Trends
     </button>
     <button type="button" data-tab="more">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M18 7h2M4 17h3M12 17h8"/><circle cx="15.5" cy="7" r="2.3"/><circle cx="9.5" cy="17" r="2.3"/></svg>More
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h9M18 7h2M4 17h3M12 17h8"/><circle cx="15.5" cy="7" r="2.3"/><circle cx="9.5" cy="17" r="2.3"/></svg>Settings
     </button>
   </div>
 </nav>
@@ -174,13 +170,27 @@
     <label class="field"><span>Breaths per minute</span><input type="number" id="f-bpm" inputmode="numeric" placeholder="e.g. 24"></label>
     <label class="field"><span>Note (optional)</span><input type="text" id="f-note" autocomplete="off"></label>
     <p class="form-error" id="f-error" role="alert" hidden></p>
+    <button type="button" class="btn ghost block" id="f-another">Save and add another</button>
+    <p class="small" id="f-added" role="status" hidden></p>
     <div class="sheet-actions">
       <button type="button" class="btn ghost danger" id="f-delete" hidden>Delete</button>
       <span class="spacer"></span>
       <button type="button" class="btn ghost" id="f-cancel">Cancel</button>
-      <button type="submit" class="btn primary">Save</button>
+      <button type="submit" class="btn primary" id="f-save">Save</button>
     </div>
   </form>
+</dialog>
+
+<!-- Check a CSV before importing -->
+<dialog class="sheet" id="sheet-import" aria-labelledby="import-title">
+  <div class="sheet-body">
+    <h2 id="import-title">Import</h2>
+    <div class="stack" id="imp-content"></div>
+    <div class="sheet-actions">
+      <button type="button" class="btn ghost" id="imp-cancel">Cancel</button>
+      <button type="button" class="btn primary" id="imp-add">Add</button>
+    </div>
+  </div>
 </dialog>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>

@@ -333,3 +333,10 @@ dialog.sheet::backdrop { background: rgba(0, 0, 0, 0.4); }
 .banner-text strong { font-size: 16px; color: var(--ink); }
 .banner-btns { display: flex; justify-content: flex-end; gap: 8px; }
 .btn.small { min-height: 38px; padding: 0 16px; font-size: 15px; border-radius: 10px; }
+
+/* ---------- Import preview ---------- */
+.imp-summary { margin: 0; font-size: 16px; }
+.imp-row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 12px; min-height: 52px; padding: 8px 14px; }
+.imp-more { display: block; text-align: center; color: var(--ink-2); min-height: 0; }
+.bad-list { margin: 0; padding-left: 18px; color: var(--ink-2); font-size: 14px; }
+#sheet-import h2, #sheet-entry h2 { text-align: center; }

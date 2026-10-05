@@ -1,9 +1,9 @@
-/* Breaths: a private breathing-rate log for a cat with heart disease.
+/* Breaths: a private breathing-rate log for a pet with heart disease.
    Everything is stored on this device (localStorage). Nothing is uploaded. */
 'use strict';
 
 (() => {
-  const APP_VERSION = '1.2';
+  const APP_VERSION = '1.3';
   const STORE_KEY = 'breaths.readings.v1';
   const SETTINGS_KEY = 'breaths.settings.v1';
   const COUNT_MS = 60000;
@@ -23,7 +23,7 @@
     { value: '90', label: '90 days', days: 90 },
     { value: 'all', label: 'All', days: 0 },
   ];
-  const VIEW_TITLES = { count: 'Count breaths', log: 'Log', trends: 'Trends', more: 'Settings & data' };
+  const VIEW_TITLES = { count: 'Count breaths', log: 'Log', trends: 'Trends', more: 'Settings' };
   const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const MONTHS = { jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5, jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11 };
@@ -73,7 +73,7 @@
   if (hadHalf) store(STORE_KEY, readings);
 
   const settings = Object.assign(
-    { name: 'BB', alert: 30, theme: 'auto', countState: 'asleep', range: '30', logFilter: 'all', lastExport: 0, hideInstall: false, backupSnooze: 0 },
+    { name: '', alert: 30, theme: 'auto', countState: 'asleep', range: '30', logFilter: 'all', lastExport: 0, hideInstall: false, backupSnooze: 0 },
     load(SETTINGS_KEY, {}),
   );
   // Number of changes (adds, edits, deletes) since the last backup.
@@ -162,7 +162,7 @@
   function renderTitle() {
     const n = settings.name.trim();
     $('#eyebrow').textContent = n ? `${n}’s breathing` : 'Breathing tracker';
-    $('#count-state-label').textContent = n ? `${n} is…` : 'Your cat is…';
+    $('#count-state-label').textContent = n ? `${n} is…` : 'Your pet is…';
   }
 
   // ---------- Views ----------
@@ -310,8 +310,10 @@
   // ---------- Add / edit sheet ----------
   const dlgEntry = $('#sheet-entry');
   let editingId = null;
+  let addedCount = 0; // readings saved with "Save and add another" since the sheet opened
   function openEntry(r) {
     editingId = r ? r.id : null;
+    addedCount = 0;
     $('#entry-title').textContent = r ? 'Edit reading' : 'Add a reading';
     const t = r ? r.t : Date.now();
     $('#f-date').value = toDateInput(t);
@@ -321,12 +323,32 @@
     $('#f-bpm').value = r ? r.bpm : '';
     $('#f-note').value = r ? r.note || '' : '';
     $('#f-delete').hidden = !r;
+    $('#f-another').hidden = !!r;
+    $('#f-added').hidden = true;
     $('#f-error').hidden = true;
+    syncEntryButtons();
     dlgEntry.showModal();
   }
   function entryError(msg) {
     $('#f-error').textContent = msg;
     $('#f-error').hidden = false;
+  }
+  /** The form's reading, or null (with an error shown) if something is missing. */
+  function readEntryForm() {
+    const ds = $('#f-date').value;
+    const tm = $('#f-time').value;
+    const bpm = parseInt($('#f-bpm').value, 10);
+    if (!ds || !tm) return entryError('Please set a date and a time.'), null;
+    if (!(bpm >= 1 && bpm <= 250)) return entryError('Enter the breaths per minute as a number, like 24.'), null;
+    const t = fromInputs(ds, tm);
+    if (t > Date.now() + 5 * 60000) return entryError('That date and time is in the future.'), null;
+    return { t, state: segValue($('#f-state')), bpm, note: $('#f-note').value.trim() };
+  }
+  /** After "Save and add another", an empty form can simply be closed. */
+  const canCloseEntry = () => addedCount > 0 && !$('#f-bpm').value.trim();
+  function syncEntryButtons() {
+    $('#f-cancel').textContent = addedCount > 0 ? 'Close' : 'Cancel';
+    $('#f-save').textContent = canCloseEntry() ? 'Done' : 'Save';
   }
 
   // ---------- Log ----------
@@ -339,7 +361,7 @@
     empty.hidden = list.length > 0;
     empty.textContent = readings.length
       ? 'No readings match this filter.'
-      : 'No readings yet. Count breaths on the Count tab, add a past reading above, or restore a backup under More.';
+      : 'No readings yet. Count breaths on the Count tab, add a past reading above, or import a backup under Settings.';
 
     const thisYear = new Date().getFullYear();
     let lastKey = null;
@@ -374,7 +396,8 @@
   }
 
   // ---------- Trends ----------
-  const hiddenStates = new Set();
+  let focusState = null; // null shows both states
+  const isShown = s => !focusState || focusState === s;
   let chartPoints = [];
   let chartHl = null;
 
@@ -430,11 +453,11 @@
       const n = items.filter(r => r.state === s).length;
       const b = h('button', 'lg-item s-' + s);
       b.type = 'button';
-      b.setAttribute('aria-pressed', String(!hiddenStates.has(s)));
+      b.setAttribute('aria-pressed', String(isShown(s)));
       b.append(h('span', 'key'), `${STATES[s].label} (${n})`);
+      b.title = focusState === s ? 'Show both' : `Show only ${STATES[s].label.toLowerCase()}`;
       b.addEventListener('click', () => {
-        if (hiddenStates.has(s)) hiddenStates.delete(s);
-        else hiddenStates.add(s);
+        focusState = focusState === s ? null : s;
         renderTrends();
       });
       root.append(b);
@@ -517,11 +540,11 @@
     const ya = Math.round(Y(alert)) + 0.5;
     svgEl('line', { x1: m.l, x2: W - m.r, y1: ya, y2: ya, class: 'threshold' }, svg);
 
-    const visible = DRAW_ORDER.filter(s => !hiddenStates.has(s));
+    const visible = DRAW_ORDER.filter(isShown);
     const shown = items.filter(r => visible.includes(r.state));
     if (!shown.length) {
       svgEl('text', { x: m.l + pw / 2, y: m.t + ph / 2, class: 'empty-label', 'text-anchor': 'middle' }, svg)
-        .textContent = items.length ? 'All states hidden' : 'No readings in this period';
+        .textContent = items.length && focusState ? `No ${STATES[focusState].label.toLowerCase()} readings in this period` : 'No readings in this period';
       return;
     }
 
@@ -649,8 +672,8 @@
   }
   async function exportCSV() {
     if (!readings.length) { toast('Nothing to back up yet'); return; }
-    const cat = settings.name.trim().replace(/[^\p{L}\p{N} _-]+/gu, '').trim();
-    const name = `${cat ? cat + ' ' : ''}breathing backup ${toDateInput(Date.now())}.csv`;
+    const pet = settings.name.trim().replace(/[^\p{L}\p{N} _-]+/gu, '').trim();
+    const name = `${pet ? pet + ' ' : ''}breathing backup ${toDateInput(Date.now())}.csv`;
     const blob = new Blob([toCSV()], { type: 'text/csv' });
     const markDone = () => {
       settings.lastExport = Date.now();
@@ -662,7 +685,8 @@
     try {
       const file = new File([blob], name, { type: 'text/csv' });
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: name });
+        // Files only: adding a title or text makes iOS save an extra text.txt alongside the CSV.
+        await navigator.share({ files: [file] });
         markDone();
         return;
       }
@@ -680,18 +704,20 @@
     markDone();
   }
 
-  // ---------- Import ----------
-  function normState(s) {
+  // ---------- Import (CSV) ----------
+  // Columns are found by name, in any order: a date (or date-and-time) column and a
+  // breaths-per-minute column are required; time, state (asleep/awake) and note are optional.
+  function stateFrom(s) {
     s = String(s || '').toLowerCase();
-    if (/half|drows|doz|relax/.test(s)) return 'awake'; // half-asleep counts as awake
+    if (/half|drows|doz|relax|rest|calm/.test(s)) return 'awake'; // "half-asleep" etc. count as awake
     if (/sleep/.test(s)) return 'asleep';
-    if (/awake|wake/.test(s)) return 'awake';
+    if (/wake|active/.test(s)) return 'awake';
     return null;
   }
   function makeTime(y, mo, d, hh, mm) {
     if (hh > 23 || mm > 59) return null;
     const dt = new Date(y, mo, d, hh, mm);
-    if (dt.getMonth() !== mo || dt.getDate() !== d) return null;
+    if (dt.getMonth() !== mo || dt.getDate() !== d) return null; // e.g. 31 September
     return dt.getTime();
   }
   function to24h(hh, ampm) {
@@ -699,31 +725,6 @@
     const pm = ampm.toLowerCase() === 'pm';
     if (hh === 12) return pm ? 12 : 0;
     return pm ? hh + 12 : hh;
-  }
-  function guessYear(mo, d, hh, mm) {
-    // Logs often omit the year: use this year, unless that would be in the future.
-    const now = new Date();
-    const y = now.getFullYear();
-    const t = makeTime(y, mo, d, hh, mm);
-    return t != null && t > now.getTime() + DAY_MS ? y - 1 : y;
-  }
-
-  // e.g. "Monday 21st Sept 23:00 (awake)  32", "3 Oct 2026 2:14pm asleep - 23"
-  const FREE_RE = /(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]{3,9})\.?,?(?:\s+(\d{4}))?[\s,]+(\d{1,2})[:.](\d{2})\s*(am|pm)?\s*(?:\(([^)]*)\)|\b(asleep|sleeping|half[\s-]?asleep|drowsy|awake)\b)?\s*[-–—:=,]?\s*(\d{1,3})\D*$/i;
-  function parseFreeLine(line) {
-    const m = FREE_RE.exec(line);
-    if (!m) return null;
-    const mo = MONTHS[m[2].slice(0, 3).toLowerCase()];
-    if (mo == null) return null;
-    const d = +m[1];
-    const hh = to24h(+m[4], m[6]);
-    const mm = +m[5];
-    const state = normState(m[7] || m[8]);
-    const bpm = +m[9];
-    if (!state || !(bpm > 0 && bpm < 300)) return null;
-    const y = m[3] ? +m[3] : guessYear(mo, d, hh, mm);
-    const t = makeTime(y, mo, d, hh, mm);
-    return t == null ? null : { t, state, bpm, note: '' };
   }
 
   function parseCSV(text, delim) {
@@ -747,105 +748,184 @@
     if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
     return rows;
   }
-  function csvRowToReading(cells, idx) {
-    const get = i => (i >= 0 && cells[i] != null ? String(cells[i]).trim() : '');
-    const ds = get(idx.date);
-    const ts = get(idx.time) || (ds.match(/\d{1,2}:\d{2}/) || [''])[0];
-    let y, mo, d, m;
-    if ((m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(ds))) { y = +m[1]; mo = +m[2] - 1; d = +m[3]; }
-    else if ((m = /^(\d{1,2})[/.](\d{1,2})[/.](\d{2,4})/.exec(ds))) { d = +m[1]; mo = +m[2] - 1; y = +m[3]; if (y < 100) y += 2000; }
-    else return null;
-    const tm = /^(\d{1,2})[:.](\d{2})(?::\d{2})?\s*(am|pm)?/i.exec(ts);
-    if (!tm) return null;
-    const state = normState(get(idx.state));
-    const bpm = parseInt(get(idx.bpm), 10);
-    if (!state || !(bpm > 0 && bpm < 300)) return null;
-    const t = makeTime(y, mo, d, to24h(+tm[1], tm[3]), +tm[2]);
-    return t == null ? null : { t, state, bpm, note: get(idx.note) };
-  }
-  function parseImport(text) {
-    text = text.replace(/^﻿/, '');
-    const firstLine = text.split(/\r\n|\n|\r/).find(l => l.trim()) || '';
-    const found = [];
-    const bad = [];
-    if (/^\s*"?date"?\s*[,;\t]/i.test(firstLine)) {
-      const delim = [',', ';', '\t'].sort((a, b) => firstLine.split(b).length - firstLine.split(a).length)[0];
-      const rows = parseCSV(text, delim).filter(r => r.some(c => c.trim()));
-      const head = rows.shift().map(c => c.trim().toLowerCase());
-      const col = re => head.findIndex(c => re.test(c));
-      const idx = {
-        date: col(/^date|day/), time: col(/time/), state: col(/state|status/),
-        bpm: col(/bpm|breath|rate|per.?min|count/), note: col(/note|comment/),
-      };
-      for (const cells of rows) {
-        const r = csvRowToReading(cells, idx);
-        if (r) found.push(r); else bad.push(cells.join(delim === '\t' ? '  ' : delim + ' '));
-      }
-    } else {
-      for (const raw of text.split(/\r\n|\n|\r/)) {
-        const line = raw.trim();
-        if (!line) continue;
-        const r = parseFreeLine(line);
-        if (r) found.push(r);
-        else if (/\d/.test(line)) bad.push(line); // lines without digits are just headings
-      }
+
+  const ISO_DATE = /^(\d{4})-(\d{1,2})-(\d{1,2})/;
+  const NUM_DATE = /^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{2,4})/;
+  const DAY_MONTH_NAME = /^(?:[a-z]+,?\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+([a-z]{3,})\.?,?\s+(\d{4})/i; // "Sat 3 Oct 2026"
+  const MONTH_NAME_DAY = /^(?:[a-z]+,?\s+)?([a-z]{3,})\.?\s+(\d{1,2})(?:st|nd|rd|th)?,?\s+(\d{4})/i; // "Oct 3, 2026"
+  const CLOCK = /(\d{1,2})[:.](\d{2})(?::\d{2})?\s*(am|pm)?/i;
+
+  function regionDayFirst() {
+    try {
+      const parts = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'numeric', year: 'numeric' }).formatToParts(new Date(2026, 9, 3));
+      return parts.find(p => p.type === 'day' || p.type === 'month').type === 'day';
+    } catch {
+      return true;
     }
-    return { found, bad };
+  }
+  /** Whether 03/10/2026 means 3 October: from the data when any day is above 12, otherwise the device's region. */
+  function dayMonthOrder(cells) {
+    let numeric = false;
+    for (const c of cells) {
+      const m = NUM_DATE.exec(c);
+      if (!m) continue;
+      numeric = true;
+      if (+m[1] > 12) return { dayFirst: true, assumed: false };
+      if (+m[2] > 12) return { dayFirst: false, assumed: false };
+    }
+    return { dayFirst: regionDayFirst(), assumed: numeric };
+  }
+  /** Year, month (0-based), day and whatever follows the date in the cell (which may hold the time). */
+  function parseDateCell(s, dayFirst) {
+    let m;
+    if ((m = ISO_DATE.exec(s))) return { y: +m[1], mo: +m[2] - 1, d: +m[3], rest: s.slice(m[0].length) };
+    if ((m = NUM_DATE.exec(s))) {
+      let y = +m[3];
+      if (y < 100) y += 2000;
+      const a = +m[1], b = +m[2];
+      return { y, mo: (dayFirst ? b : a) - 1, d: dayFirst ? a : b, rest: s.slice(m[0].length) };
+    }
+    if ((m = DAY_MONTH_NAME.exec(s))) {
+      const mo = MONTHS[m[2].slice(0, 3).toLowerCase()];
+      if (mo != null) return { y: +m[3], mo, d: +m[1], rest: s.slice(m[0].length) };
+    }
+    if ((m = MONTH_NAME_DAY.exec(s))) {
+      const mo = MONTHS[m[1].slice(0, 3).toLowerCase()];
+      if (mo != null) return { y: +m[3], mo, d: +m[2], rest: s.slice(m[0].length) };
+    }
+    return null;
+  }
+  function parseBpm(s) {
+    const m = /\d+(?:[.,]\d+)?/.exec(s);
+    if (!m) return null;
+    const v = Math.round(parseFloat(m[0].replace(',', '.')));
+    return v >= 1 && v < 300 ? v : null;
+  }
+
+  function parseImport(raw) {
+    const text = raw.replace(/^﻿/, '');
+    const headerLine = text.split(/\r\n|\n|\r/).find(l => l.trim());
+    if (!headerLine) return { problem: 'The file is empty.' };
+    const delim = [',', ';', '\t'].reduce((best, d) => (headerLine.split(d).length > headerLine.split(best).length ? d : best));
+    const rows = parseCSV(text, delim).filter(r => r.some(c => c.trim()));
+    const head = rows.shift().map(c => c.trim().toLowerCase());
+    const col = (test, exclude = []) => head.findIndex((name, i) => !exclude.includes(i) && test(name));
+    const iBpm = col(n => /bpm|breath|rate|rpm|resp|per min|\/min|count/.test(n));
+    const iDate = col(n => /date|timestamp/.test(n) || n === 'day' || n === 'when', [iBpm]);
+    const iTime = col(n => n.includes('time') && !n.includes('timestamp'), [iBpm, iDate]);
+    const iState = col(n => /state|status|sleep|awake|condition|activity/.test(n), [iBpm, iDate, iTime]);
+    const iNote = col(n => /note|comment|remark/.test(n), [iBpm, iDate, iTime, iState]);
+    if (iDate < 0 || iBpm < 0) {
+      return { problem: 'Couldn’t find a date column and a breaths-per-minute column. The file needs a header row naming the columns, such as date, time, state, breaths_per_min.' };
+    }
+
+    const get = (cells, i) => (i >= 0 && i < cells.length ? String(cells[i]).trim() : '');
+    const order = dayMonthOrder(rows.map(c => get(c, iDate)));
+    const result = { found: [], bad: [], missingTime: 0, assumedOrder: order.assumed ? (order.dayFirst ? 'day/month' : 'month/day') : null };
+    for (const cells of rows) {
+      const line = cells.join(delim === '\t' ? '  ' : delim + ' ');
+      const date = parseDateCell(get(cells, iDate), order.dayFirst);
+      const bpm = parseBpm(get(cells, iBpm));
+      if (!date || bpm == null) { result.bad.push(line); continue; }
+      const tm = CLOCK.exec(get(cells, iTime) || date.rest);
+      let hh = 12, mm = 0;
+      if (tm) { hh = to24h(+tm[1], tm[3]); mm = +tm[2]; } else result.missingTime++;
+      const t = makeTime(date.y, date.mo, date.d, hh, mm);
+      if (t == null) { result.bad.push(line); continue; }
+      result.found.push({ t, state: iState >= 0 ? stateFrom(get(cells, iState)) : null, bpm, note: get(cells, iNote) });
+    }
+    return result;
   }
 
   const dupKey = r => `${Math.round(r.t / 60000)}|${r.state}|${r.bpm}`;
-  function previewImport(text, fromFile) {
-    const box = $('#import-result');
+  const dlgImport = $('#sheet-import');
+  let importing = null; // { result, fileName, fallback }
+
+  function openImport(text, fileName) {
+    importing = { result: parseImport(text), fileName, fallback: 'asleep' };
+    renderImport();
+    dlgImport.showModal();
+  }
+  /** Readings not already in the log, with the chosen state where the file doesn't say. */
+  function importFresh() {
+    const keys = new Set(readings.map(dupKey));
+    const out = [];
+    for (const r of importing.result.found) {
+      const item = { ...r, state: r.state || importing.fallback };
+      const k = dupKey(item);
+      if (keys.has(k)) continue;
+      keys.add(k);
+      out.push(item);
+    }
+    return out.sort((a, b) => a.t - b.t);
+  }
+  function renderImport() {
+    const { result, fileName } = importing;
+    const box = $('#imp-content');
+    const add = $('#imp-add');
     box.replaceChildren();
-    box.hidden = false;
-    const { found, bad } = parseImport(text);
-    const existing = new Set(readings.map(dupKey));
-    const fresh = [];
-    let dups = 0;
-    for (const r of found) {
-      const k = dupKey(r);
-      if (existing.has(k)) { dups++; continue; }
-      existing.add(k);
-      fresh.push(r);
+    if (result.problem) {
+      box.append(h('p', null, result.problem), h('p', 'small', fileName));
+      add.hidden = true;
+      return;
     }
-    if (!found.length) {
-      box.append(h('p', null, 'I couldn’t find any readings there. Each line needs a date, a time, a state (awake or asleep) and the number of breaths.'));
-    } else {
-      const c = { asleep: 0, awake: 0 };
-      for (const r of found) c[r.state]++;
-      const ts = found.map(r => r.t);
-      const head = h('p');
-      head.append(h('strong', null, `Found ${found.length} reading${found.length === 1 ? '' : 's'}`),
-        ` from ${fmtDay(Math.min(...ts), true)} to ${fmtDay(Math.max(...ts), true)}: ${c.asleep} asleep, ${c.awake} awake.`);
-      box.append(head);
-      if (dups) box.append(h('p', null, `${dups} ${dups === 1 ? 'is' : 'are'} already in your log and will be skipped.`));
+    const fresh = importFresh();
+    const dups = result.found.length - fresh.length;
+    let summary = !result.found.length ? 'No readings could be read from this file.'
+      : fresh.length ? `${fresh.length} new reading${fresh.length === 1 ? '' : 's'} to add, ${dayKey(fresh[0].t) === dayKey(fresh[fresh.length - 1].t)
+        ? `on ${fmtDay(fresh[0].t, true)}` : `from ${fmtDay(fresh[0].t, true)} to ${fmtDay(fresh[fresh.length - 1].t, true)}`}.`
+      : 'Nothing new to add.';
+    if (dups > 0) summary += ` ${dups} ${dups === 1 ? 'is' : 'are'} already in your log and will be skipped.`;
+    box.append(h('p', 'imp-summary', summary), h('p', 'small', fileName));
+
+    const missing = result.found.filter(r => !r.state).length;
+    if (missing) {
+      const field = h('div', 'field');
+      const seg = h('div', 'seg');
+      makeSeg(seg, STATE_OPTIONS, importing.fallback, v => { importing.fallback = v; renderImport(); });
+      field.append(h('span', null, 'Asleep or awake?'), seg,
+        h('small', null, `${missing} reading${missing === 1 ? ' doesn’t' : 's don’t'} say whether your pet was asleep or awake. Choose which to record ${missing === 1 ? 'it' : 'them'} as.`));
+      box.append(field);
     }
-    if (bad.length) {
-      box.append(h('p', null, `${bad.length} line${bad.length === 1 ? '' : 's'} couldn’t be read and will be skipped:`));
-      const ul = h('ul');
-      for (const line of bad.slice(0, 5)) { const li = h('li'); li.append(h('code', null, line)); ul.append(li); }
-      if (bad.length > 5) ul.append(h('li', null, `…and ${bad.length - 5} more`));
-      box.append(ul);
-    }
+
     if (fresh.length) {
-      const row = h('div', 'row-btns');
-      const cancel = h('button', 'btn ghost', 'Cancel');
-      cancel.type = 'button';
-      cancel.addEventListener('click', () => { box.hidden = true; });
-      const go = h('button', 'btn primary', `Add ${fresh.length}`);
-      go.type = 'button';
-      go.addEventListener('click', () => {
-        addReadings(fresh, fromFile); // restoring a backup file doesn't need backing up again
-        box.hidden = true;
-        $('#import-text').value = '';
-        renderMore();
-        toast(`Added ${fresh.length} reading${fresh.length === 1 ? '' : 's'}`);
-      });
-      row.append(cancel, go);
-      box.append(row);
-    } else if (found.length) {
-      box.append(h('p', null, 'Nothing new to add.'));
+      const ul = h('ul', 'rows');
+      const sample = fresh.length <= 6 ? fresh : [...fresh.slice(0, 3), null, ...fresh.slice(-2)];
+      for (const r of sample) {
+        const li = h('li');
+        if (!r) {
+          li.append(h('div', 'imp-row imp-more', '⋯'));
+        } else {
+          const row = h('div', 'imp-row');
+          const when = h('span', 'row-txt');
+          when.append(h('span', null, fmtDay(r.t, true)), h('span', 'row-note', fmtTime(r.t)));
+          const st = h('span', 'row-state s-' + r.state);
+          st.append(h('span', 'key'), h('span', null, STATES[r.state].label));
+          row.append(when, st, h('span', 'row-bpm', String(r.bpm)));
+          li.append(row);
+        }
+        ul.append(li);
+      }
+      box.append(h('p', 'label', 'Check these look right'), ul);
+      if (result.assumedOrder) {
+        box.append(h('p', 'small', `Dates like 03/10 were read as ${result.assumedOrder}, following this device’s region. If they look wrong, cancel and change the dates in the file to the 2026-10-03 style.`));
+      }
+      if (result.missingTime) {
+        box.append(h('p', 'small', `${result.missingTime} reading${result.missingTime === 1 ? ' has' : 's have'} no time, so ${result.missingTime === 1 ? 'it was' : 'they were'} set to 12:00.`));
+      }
     }
+
+    if (result.bad.length) {
+      const ul = h('ul', 'bad-list');
+      for (const line of result.bad.slice(0, 5)) { const li = h('li'); li.append(h('code', null, line)); ul.append(li); }
+      if (result.bad.length > 5) ul.append(h('li', null, `…and ${result.bad.length - 5} more`));
+      box.append(h('p', 'label', `${result.bad.length} row${result.bad.length === 1 ? '' : 's'} couldn’t be read`), ul,
+        h('p', 'small', 'These will be skipped. Each row needs a date and a number of breaths.'));
+    }
+
+    add.hidden = false;
+    add.disabled = !fresh.length;
+    add.textContent = `Add ${fresh.length}`;
   }
 
   // ---------- Wire up ----------
@@ -904,16 +984,32 @@
     $('#btn-add').addEventListener('click', () => openEntry(null));
     $('#f-cancel').addEventListener('click', () => dlgEntry.close());
     dlgEntry.addEventListener('click', e => { if (e.target === dlgEntry) dlgEntry.close(); });
+    $('#btn-add-past').addEventListener('click', () => openEntry(null));
+    $('#f-bpm').addEventListener('input', syncEntryButtons);
+    $('#f-another').addEventListener('click', () => {
+      const data = readEntryForm();
+      if (!data) return;
+      addReadings([data]);
+      addedCount++;
+      $('#entry-title').textContent = `${addedCount} added`;
+      $('#f-added').textContent = `Added ${addedCount}. Last: ${data.bpm}/min, ${STATES[data.state].label.toLowerCase()}, ${fmtDay(data.t)} ${fmtTime(data.t)}.`;
+      $('#f-added').hidden = false;
+      $('#f-error').hidden = true;
+      $('#f-bpm').value = '';
+      $('#f-note').value = '';
+      $('#f-bpm').focus();
+      syncEntryButtons();
+    });
+    dlgEntry.addEventListener('close', () => {
+      if (!addedCount) return;
+      renderView();
+      toast(`Added ${addedCount} reading${addedCount === 1 ? '' : 's'}`);
+    });
     $('#entry-form').addEventListener('submit', e => {
       e.preventDefault();
-      const ds = $('#f-date').value;
-      const tm = $('#f-time').value;
-      const bpm = parseInt($('#f-bpm').value, 10);
-      if (!ds || !tm) return entryError('Please set a date and a time.');
-      if (!(bpm >= 1 && bpm <= 250)) return entryError('Enter the breaths per minute as a number, like 24.');
-      const t = fromInputs(ds, tm);
-      if (t > Date.now() + 5 * 60000) return entryError('That date and time is in the future.');
-      const data = { t, state: segValue($('#f-state')), bpm, note: $('#f-note').value.trim() };
+      if (canCloseEntry()) { dlgEntry.close(); return; }
+      const data = readEntryForm();
+      if (!data) return;
       if (editingId) {
         const r = readings.find(x => x.id === editingId);
         if (r) Object.assign(r, data);
@@ -921,10 +1017,14 @@
         markChanged(1);
       } else {
         addReadings([data]);
+        addedCount++;
       }
+      const wasEditing = editingId;
+      const count = addedCount;
+      addedCount = 0; // the close handler shouldn't toast as well
       dlgEntry.close();
       renderView();
-      toast(editingId ? 'Reading updated' : 'Reading added');
+      toast(wasEditing ? 'Reading updated' : count > 1 ? `Added ${count} readings` : 'Reading added');
     });
     $('#f-delete').addEventListener('click', () => {
       if (!editingId || !confirm('Delete this reading?')) return;
@@ -962,19 +1062,22 @@
       if (v >= 10 && v <= 80) { settings.alert = v; saveSettings(); toast(`Alert level set to ${v}`); }
       else { e.target.value = settings.alert; toast('Alert level should be between 10 and 80'); }
     });
-    makeSeg($('#s-theme'), [{ value: 'auto', label: 'Auto' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }],
+    makeSeg($('#s-theme'), [{ value: 'auto', label: 'System' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }],
       settings.theme, v => { settings.theme = v; saveSettings(); applyTheme(); });
     $('#btn-export').addEventListener('click', exportCSV);
-    $('#btn-import-parse').addEventListener('click', () => {
-      const text = $('#import-text').value;
-      if (!text.trim()) { toast('Paste your log into the box first'); return; }
-      previewImport(text);
-    });
     $('#btn-import-file').addEventListener('click', () => $('#import-file').click());
     $('#import-file').addEventListener('change', async e => {
       const f = e.target.files && e.target.files[0];
       e.target.value = '';
-      if (f) previewImport(await f.text(), true);
+      if (f) openImport(await f.text(), f.name);
+    });
+    $('#imp-cancel').addEventListener('click', () => dlgImport.close());
+    $('#imp-add').addEventListener('click', () => {
+      const fresh = importFresh();
+      addReadings(fresh, true); // the file itself is already a copy
+      dlgImport.close();
+      renderView();
+      toast(`Added ${fresh.length} reading${fresh.length === 1 ? '' : 's'}`);
     });
     $('#btn-wipe').addEventListener('click', () => {
       if (!readings.length) { toast('There’s nothing to delete'); return; }

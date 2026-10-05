@@ -255,7 +255,9 @@ struct ImportSheet: View {
         if preview.result.found.isEmpty { return "No readings could be read from this file." }
         var s: String
         if let first = fresh.first, let last = fresh.last {
-            s = "\(fresh.count) new reading\(fresh.count == 1 ? "" : "s") to add, from \(first.date.formatted(date: .abbreviated, time: .omitted)) to \(last.date.formatted(date: .abbreviated, time: .omitted))."
+            let from = first.date.formatted(date: .abbreviated, time: .omitted)
+            let to = last.date.formatted(date: .abbreviated, time: .omitted)
+            s = "\(fresh.count) new reading\(fresh.count == 1 ? "" : "s") to add, \(from == to ? "on \(from)" : "from \(from) to \(to)")."
         } else {
             s = "Nothing new to add."
         }

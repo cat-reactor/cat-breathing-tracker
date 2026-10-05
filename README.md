@@ -1,13 +1,13 @@
-# Breaths: a private cat breathing tracker
+# Breaths: a private pet breathing tracker
 
-A small web app for logging a cat's breathing rate (breaths per minute), made for
-monitoring a cat with HCM. Add it to an iPhone Home Screen and it behaves like an app.
+A small web app for logging a pet’s breathing rate (breaths per minute), made for
+monitoring a pet with heart disease (HCM). Add it to an iPhone Home Screen and it behaves like an app.
 
 - **Count**: tap once per breath; the 1-minute timer starts with the first tap.
 - **Log**: every reading by day; add past readings or edit/delete any reading.
 - **Trends**: asleep and awake readings charted separately, with an alert line
   (default 30/min; set your vet's number under More).
-- **Import / export**: paste an old text log or a CSV; export CSV to back up or send to the vet.
+- **Backup & import**: back up to iCloud Drive as a CSV (also handy for the vet); add past readings by hand or import a CSV.
 
 ## Privacy
 
