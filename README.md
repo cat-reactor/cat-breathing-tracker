@@ -23,8 +23,14 @@ phone. This repository contains only the app's code, never your data.
 
 Back up now and then with **More → Export CSV**.
 
+## Native iPhone app (in progress)
+
+`ios/` holds a native SwiftUI version of the same app, being prepared for the App Store.
+It stores readings with SwiftData and will sync them to the user's own iCloud.
+Open `ios/Breaths.xcodeproj` in Xcode to build it.
+
 ## Files
 
-`index.html`, `styles.css`, `app.js` are the app. `sw.js` makes it work offline
+`index.html`, `styles.css`, `app.js` are the web app. `sw.js` makes it work offline
 (bump `CACHE` in it when releasing changes). `manifest.webmanifest` and `icons/` are for the
 Home Screen icon.
