@@ -190,8 +190,8 @@ struct TrendsView: View {
         let pad = (b.to.timeIntervalSince(b.from)) * 0.03
         return Chart {
             RuleMark(y: .value("Alert level", alertLevel))
-                .foregroundStyle(.secondary)
-                .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                .foregroundStyle(Color(.secondaryLabel))
+                .lineStyle(StrokeStyle(lineWidth: 1.25, dash: [4, 4]))
 
             ForEach(dailyMeans) { m in
                 LineMark(
@@ -220,12 +220,15 @@ struct TrendsView: View {
         .chartXScale(domain: b.from.addingTimeInterval(-pad)...b.to.addingTimeInterval(pad))
         .chartYScale(domain: yDomain)
         .chartYAxis {
-            AxisMarks(position: .leading, values: .stride(by: yDomain.upperBound - yDomain.lowerBound > 50 ? 10 : 5))
+            AxisMarks(position: .leading, values: .stride(by: yDomain.upperBound - yDomain.lowerBound > 50 ? 10 : 5)) { _ in
+                AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5))
+                AxisValueLabel()
+            }
         }
         .chartXAxis {
+            // No vertical gridlines: the only dashed line on the chart is the alert level.
             AxisMarks(values: .automatic(desiredCount: 5)) { _ in
-                AxisGridLine()
-                AxisTick()
+                AxisTick(stroke: StrokeStyle(lineWidth: 0.5))
                 AxisValueLabel(format: .dateTime.day().month(.abbreviated))
             }
         }

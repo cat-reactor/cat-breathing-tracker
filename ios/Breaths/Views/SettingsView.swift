@@ -191,14 +191,16 @@ struct PasteImportView: View {
 
     @State private var text = ""
     @State private var preview: ImportPreview?
+    @FocusState private var editing: Bool
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
                     TextEditor(text: $text)
-                        .font(.system(.body, design: .monospaced))
-                        .frame(minHeight: 180)
+                        .font(.system(.footnote, design: .monospaced))
+                        .frame(height: 200)
+                        .focused($editing)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
                         .onChange(of: text) { preview = nil }
@@ -223,7 +225,10 @@ struct PasteImportView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Check") { preview = ImportPreview.make(text: text, existing: existing) }
+                    Button("Check") {
+                        editing = false
+                        preview = ImportPreview.make(text: text, existing: existing)
+                    }
                         .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }

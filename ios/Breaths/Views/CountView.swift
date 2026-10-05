@@ -3,7 +3,14 @@ import SwiftData
 import UIKit
 
 struct CountView: View {
-    static let duration: TimeInterval = 60
+    static var duration: TimeInterval {
+        #if DEBUG
+        // Test builds only: `defaults write <bundle id> debugCountSeconds 5` shortens the count.
+        let override = UserDefaults.standard.double(forKey: "debugCountSeconds")
+        if override > 0 { return override }
+        #endif
+        return 60
+    }
 
     @Environment(\.modelContext) private var context
     @Environment(\.scenePhase) private var scenePhase
@@ -18,7 +25,6 @@ struct CountView: View {
     @State private var count = 0
     @State private var lockUntil = Date.distantPast
     @State private var finishTask: Task<Void, Never>?
-    @State private var touching = false
     @State private var pulse = false
     @State private var pending: PendingCount?
 
@@ -111,17 +117,8 @@ struct CountView: View {
         .frame(maxWidth: 300)
         .aspectRatio(1, contentMode: .fit)
         .scaleEffect(pulse ? 0.965 : 1)
-        .contentShape(Circle())
         // Count on touch-down (not lift) so fast taps register immediately.
-        .gesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in
-                    guard !touching else { return }
-                    touching = true
-                    tap()
-                }
-                .onEnded { _ in touching = false }
-        )
+        .overlay { TouchDownArea { tap() } }
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isButton)
         .accessibilityLabel(phase == .idle ? "Tap for each breath" : "\(count) breaths")
@@ -189,6 +186,37 @@ struct CountView: View {
     }
 }
 
+/// A circular touch area that reports every finger the moment it lands.
+private struct TouchDownArea: UIViewRepresentable {
+    let onTouchDown: () -> Void
+
+    func makeUIView(context: Context) -> TouchView {
+        let view = TouchView()
+        view.backgroundColor = .clear
+        view.isMultipleTouchEnabled = true
+        view.isAccessibilityElement = false
+        view.onTouchDown = onTouchDown
+        return view
+    }
+
+    func updateUIView(_ view: TouchView, context: Context) {
+        view.onTouchDown = onTouchDown
+    }
+
+    final class TouchView: UIView {
+        var onTouchDown: (() -> Void)?
+
+        override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+            for _ in touches { onTouchDown?() }
+        }
+
+        override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+            let radius = min(bounds.width, bounds.height) / 2
+            return hypot(point.x - bounds.midX, point.y - bounds.midY) <= radius
+        }
+    }
+}
+
 struct PendingCount: Identifiable {
     let id = UUID()
     var bpm: Int
@@ -247,17 +275,21 @@ struct ResultSheet: View {
                 .textFieldStyle(.roundedBorder)
 
             HStack(spacing: 12) {
-                Button("Discard", role: .destructive, action: onDiscard)
-                    .buttonStyle(.bordered)
-                    .frame(maxWidth: .infinity)
+                Button(role: .destructive, action: onDiscard) {
+                    Text("Discard").frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
                 Button { onSave(pending) } label: {
                     Text("Save").frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
             }
             .controlSize(.large)
+
+            Spacer(minLength: 0)
         }
-        .padding()
+        .padding(.horizontal)
+        .padding(.top, 28)
         .presentationDetents([.large])
         .interactiveDismissDisabled() // don't lose a count to an accidental swipe
     }

@@ -46,6 +46,7 @@ struct LogView: View {
                     Section(section.day.dayLabel + yearSuffix(section.day)) {
                         ForEach(section.items) { r in
                             Button { editing = r } label: { ReadingRow(reading: r, alertLevel: alertLevel) }
+                                .tint(.primary)
                                 .swipeActions {
                                     Button("Delete", systemImage: "trash", role: .destructive) { confirmDelete = r }
                                 }
